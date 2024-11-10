@@ -3,6 +3,8 @@ title: "Basic Modeling Practice"
 author: "Robert Berini"
 format: html
 editor: visual
+execute: 
+  warning: false
 ---
 
 ## Load required packages
@@ -112,10 +114,51 @@ new_seoul_bike_data |>
   facet_wrap(~ seasons)
 ```
 
+```{r}
+new_seoul_bike_data |>
+  ggplot(aes(x = rented_bike_count, y = wind_speed)) +
+  geom_point() +
+  facet_wrap(~ seasons)
+```
+
+```{r}
+new_seoul_bike_data |>
+  ggplot(aes(x = rented_bike_count, y = solar_radiation)) +
+  geom_point() +
+  facet_wrap(~ seasons)
+```
+
+```{r}
+new_seoul_bike_data |>
+  mutate(snowfall = factor(if_else(snowfall == 0, "No Snow", "Snow"))) |>
+  ggplot(aes(x = snowfall, y = rented_bike_count)) +
+  geom_boxplot()
+```
+
+```{r}
+new_seoul_bike_data |>
+  mutate(rainfall = factor(if_else(rainfall == 0, "No Rain", "Rain"))) |>
+  ggplot(aes(x = rainfall, y = rented_bike_count)) +
+  geom_boxplot()
+```
+
+```{r}
+new_seoul_bike_data |>
+  mutate(weekpart = factor(if_else(wday(date, label = T) %in% c("Sun", "Sat"), "Weekend", "Weekday"))) |>
+  ggplot(aes(x = weekpart, y = rented_bike_count)) +
+  geom_boxplot()
+```
+
+```{r}
+new_seoul_bike_data |>
+  ggplot(aes(x = holiday, y = rented_bike_count)) +
+  geom_boxplot()
+```
+
+
 ## Split the data
 
 Split the data into a training and test set (75/25 split). Use the strata argument to stratify the split on the `seasons` variable
-
 ```{r}
 set.seed(1017)
 bike_split <- initial_split(new_seoul_bike_data, prop = 0.75, strata = "seasons")
@@ -124,7 +167,6 @@ bike_test <- testing(bike_split)
 ```
 
 On the training set, create a 10 fold CV split
-
 ```{r}
 bike_10_fold <- vfold_cv(bike_train, 10)
 ```
@@ -149,7 +191,6 @@ bike_rec_1 |>
   bake(bike_train)
 ```
 
-
 For the 2nd recipe: • Do the same steps as above. • Add in interactions between seasons and holiday, seasons and temp, temp and rainfall. For the seasons interactions, you can use starts_with() to create the proper interactions.
 
 ```{r}
@@ -165,7 +206,6 @@ bike_rec_2 |>
   prep(training = bike_train) |>
   bake(bike_train)
 ```
-
 
 For the 3rd recipe: • Do the same as the 2nd recipe. • Add in quadratic terms for each numeric predictor
 
@@ -190,13 +230,7 @@ bike_rec_3 |>
   bake(bike_train)
 ```
 
-
 ## Fit MLR Models
-```{r}
-set.seed(1017)
-bike_10_fold <- vfold_cv(bike_train, v = 10)
-bike_10_fold
-```
 
 ```{r}
 lm_mod <-
@@ -224,6 +258,7 @@ bike_cv_1_metrics <-
 ```
 
 Repeat process for recipe 2
+
 ```{r}
 bike_wfl_2 <-
   workflow() |>
@@ -244,6 +279,7 @@ bike_cv_2_metrics <-
 ```
 
 Repeat for recipe 3
+
 ```{r}
 bike_wfl_3 <-
   workflow() |>

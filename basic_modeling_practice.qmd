@@ -29,21 +29,31 @@ seoul_bike_data <- read_csv("https://www4.stat.ncsu.edu/~online/datasets/SeoulBi
 
 ## Check and manipulate the data
 
+Check for any missing values.
+
 ```{r}
 vis_miss(seoul_bike_data)
 ```
+
+Explore columns names, column types, and values.
 
 ```{r}
 glimpse(seoul_bike_data)
 ```
 
+Generate basic summary statistics for numeric columns and check the unique values for the categorical variables.
+
 ```{r}
 skim(seoul_bike_data)
 ```
 
+Simplify column names.
+
 ```{r}
 names(seoul_bike_data) <- str_remove(names(seoul_bike_data), "\\s*\\([^\\)]+\\)")
 ```
+
+Convert the `Date` column into an actual date. Turn the character variables (`Seasons`, `Holiday`, and `Functioning Day`) into factors. Rename the all variables to have easy to use names in snake case.
 
 ```{r}
 seoul_bike_data <-
@@ -57,6 +67,8 @@ seoul_bike_data
 
 ## Exploratory data analysis
 
+Generate summary statistics across variables.
+
 ```{r}
 summary(seoul_bike_data)
 ```
@@ -65,6 +77,8 @@ summary(seoul_bike_data)
 skim(seoul_bike_data)
 ```
 
+Explore `rented_bike_count` by the `functioning_day` variable.
+
 ```{r}
 seoul_bike_data |>
   group_by(functioning_day) |>
@@ -72,13 +86,22 @@ seoul_bike_data |>
   skim()
 ```
 
+There appear to be no bike rentals on non-functioning days. This implies the business is closed on these days and should be removed from the final data used for analysis.
+
+Create an object that captures all the weather variables.
+
 ```{r}
 weather_vars <- names(seoul_bike_data[4:9])
 weather_vars
 ```
 
-```{r}
+To simplify analysis, summarize across the hours so that each day has one observation associated with it:
 
+-   `group_by()` the `date`, `seasons`, and `holiday` variables
+-   find the `sum` of the `rented_bike_count`, `rainfall`, and `snowfall` variables
+-   find the `mean` of all the weather related variables
+
+```{r}
 new_seoul_bike_data <-
   seoul_bike_data |>
   filter(functioning_day == "Yes") |>
@@ -89,7 +112,7 @@ new_seoul_bike_data <-
 new_seoul_bike_data
 ```
 
-Recreate your basic summary stats
+Recreate basic summary statistics.
 
 ```{r}
 summary(new_seoul_bike_data)
@@ -99,66 +122,90 @@ summary(new_seoul_bike_data)
 stat.desc(new_seoul_bike_data[,4:ncol(new_seoul_bike_data)], basic = F)
 ```
 
-Report correlation between numeric variables
+Report correlation between numeric variables.
 
 ```{r}
 cor(new_seoul_bike_data[,4:ncol(new_seoul_bike_data)])
 ```
 
-Create some plots to explore relationships
+Create some plots to explore relationships.
 
 ```{r}
 new_seoul_bike_data |>
-  ggplot(aes(x = rented_bike_count, y = temperature)) +
+  ggplot(aes(x = temperature, y = rented_bike_count)) +
   geom_point(aes(color = holiday)) +
-  facet_wrap(~ seasons)
+  facet_wrap(~ seasons) +
+  ggtitle("Relationship Between Rented Bike Count and Solar Radiation",
+          subtitle = "Considering Effects of Season and Holiday") +
+  xlab("Temperature") +
+  ylab("Rented Bike Count")
 ```
 
 ```{r}
 new_seoul_bike_data |>
-  ggplot(aes(x = rented_bike_count, y = wind_speed)) +
+  ggplot(aes(x = wind_speed, y = rented_bike_count)) +
   geom_point() +
-  facet_wrap(~ seasons)
+  facet_wrap(~ seasons) +
+  ggtitle("Relationship Between Rented Bike Count and Wind Speed",
+          subtitle = "Considering Effects of Season") +
+  xlab("Wind Speed") +
+  ylab("Rented Bike Count")
 ```
 
 ```{r}
 new_seoul_bike_data |>
-  ggplot(aes(x = rented_bike_count, y = solar_radiation)) +
+  ggplot(aes(x = solar_radiation, y = rented_bike_count)) +
   geom_point() +
-  facet_wrap(~ seasons)
+  facet_wrap(~ seasons) +
+  ggtitle("Relationship Between Rented Bike Count and Solar Radiation",
+          subtitle = "Considering Effects of Season") +
+  xlab("Solar Radiation") +
+  ylab("Rented Bike Count")
 ```
 
 ```{r}
 new_seoul_bike_data |>
   mutate(snowfall = factor(if_else(snowfall == 0, "No Snow", "Snow"))) |>
   ggplot(aes(x = snowfall, y = rented_bike_count)) +
-  geom_boxplot()
+  geom_boxplot() +
+  ggtitle("Distribution of Rented Bike Count for Snowy Versus Non-Snowy Days") +
+  xlab("Snowfall") +
+  ylab("Rented Bike Count")
 ```
 
 ```{r}
 new_seoul_bike_data |>
   mutate(rainfall = factor(if_else(rainfall == 0, "No Rain", "Rain"))) |>
   ggplot(aes(x = rainfall, y = rented_bike_count)) +
-  geom_boxplot()
+  geom_boxplot() +
+  ggtitle("Distribution of Rented Bike Count for Rainy Versus Non-Rainy Days") +
+  xlab("Rainfall") +
+  ylab("Rented Bike Count")
 ```
 
 ```{r}
 new_seoul_bike_data |>
   mutate(weekpart = factor(if_else(wday(date, label = T) %in% c("Sun", "Sat"), "Weekend", "Weekday"))) |>
   ggplot(aes(x = weekpart, y = rented_bike_count)) +
-  geom_boxplot()
+  geom_boxplot() +
+  ggtitle("Distribution of Rented Bike Count for Weekdays Versus Weekends") +
+  xlab("Part of Week") +
+  ylab("Rented Bike Count")
 ```
 
 ```{r}
 new_seoul_bike_data |>
   ggplot(aes(x = holiday, y = rented_bike_count)) +
-  geom_boxplot()
+  geom_boxplot() +
+  ggtitle("Distribution of Rented Bike Count for Holidays Versus Non-Holidays") +
+  xlab("Holiday") +
+  ylab("Rented Bike Count")
 ```
-
 
 ## Split the data
 
-Split the data into a training and test set (75/25 split). Use the strata argument to stratify the split on the `seasons` variable
+Split the data into a training and test set (75/25 split). Use the `strata` argument to stratify the split on the `seasons` variable.
+
 ```{r}
 set.seed(1017)
 bike_split <- initial_split(new_seoul_bike_data, prop = 0.75, strata = "seasons")
@@ -166,14 +213,19 @@ bike_train <- training(bike_split)
 bike_test <- testing(bike_split)
 ```
 
-On the training set, create a 10 fold CV split
+On the training set, create a 10 fold CV split.
+
 ```{r}
 bike_10_fold <- vfold_cv(bike_train, 10)
 ```
 
 ## Create recipes
 
-For the 1st recipe: • Let’s ignore the date variable for modeling (so we’ll need to remove that or give it a different ID) but use it to create a weekday/weekend (factor) variable. (See step 2 of the shinymodels tutorial! You can use step_date() then step_mutate() with a factor(if_else(...)) to create the variable. I then had to remove the intermediate variable created.) • Let’s standardize the numeric variables since their scales are pretty different. • Let’s create dummy variables for the seasons, holiday, and our new day type variable
+For the 1st recipe:
+
+-   ignore the date variable for modeling, but use it to create a weekday/weekend (factor) variable called `weekpart`
+-   standardize the numeric variables
+-   create dummy variables for the `seasons`, `holiday`, and new `weekpart` variable
 
 ```{r}
 bike_rec_1 <-
@@ -191,7 +243,10 @@ bike_rec_1 |>
   bake(bike_train)
 ```
 
-For the 2nd recipe: • Do the same steps as above. • Add in interactions between seasons and holiday, seasons and temp, temp and rainfall. For the seasons interactions, you can use starts_with() to create the proper interactions.
+For the 2nd recipe:
+
+-   do the same steps as above
+-   add in interactions between `seasons` and `holiday`, `seasons` and `temperature`, and `temperature` and `rainfall`
 
 ```{r}
 bike_rec_2 <-
@@ -207,7 +262,10 @@ bike_rec_2 |>
   bake(bike_train)
 ```
 
-For the 3rd recipe: • Do the same as the 2nd recipe. • Add in quadratic terms for each numeric predictor
+For the 3rd recipe:
+
+-   do the same as the 2nd recipe
+-   add in quadratic terms for each numeric predictor
 
 ```{r}
 bike_rec_3 <-
@@ -232,12 +290,14 @@ bike_rec_3 |>
 
 ## Fit MLR Models
 
+Set up linear model fit to use the `“lm”` engine.
 ```{r}
 lm_mod <-
   linear_reg() |>
   set_engine("lm")
 ```
 
+Fit models for recipe 1 using 10 fold CV via `fit_resamples()` and consider the training set CV error.
 ```{r}
 bike_wfl_1 <-
   workflow() |>
@@ -257,8 +317,7 @@ bike_cv_1_metrics <-
   collect_metrics()
 ```
 
-Repeat process for recipe 2
-
+Repeat process for recipe 2.
 ```{r}
 bike_wfl_2 <-
   workflow() |>
@@ -278,8 +337,7 @@ bike_cv_2_metrics <-
   collect_metrics()
 ```
 
-Repeat for recipe 3
-
+Repeat process for recipe 3.
 ```{r}
 bike_wfl_3 <-
   workflow() |>
@@ -299,6 +357,7 @@ bike_cv_3_metrics <-
   collect_metrics()
 ```
 
+Consider the training set CV error across recipes to choose a best model.
 ```{r}
 rbind(bike_cv_1_metrics, bike_cv_2_metrics, bike_cv_3_metrics)
 ```
@@ -314,12 +373,15 @@ bike_best_fit |>
   tidy()
 ```
 
+Using the best model, fit the model to the entire training data set using the `last_fit()` function. Compute the RMSE metric on the test set.
 ```{r}
 bike_wfl_3 |>
   last_fit(split = bike_split) |>
   collect_metrics()
 ```
 
+Obtain the final model (fit on the entire training set) coefficient table using `extract_fit_parsnip()`
+and `tidy()`.
 ```{r}
 extract_fit_parsnip(
   bike_wfl_3 |>

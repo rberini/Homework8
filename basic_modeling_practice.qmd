@@ -1,0 +1,293 @@
+---
+title: "Basic Modeling Practice"
+author: "Robert Berini"
+format: html
+editor: visual
+---
+
+## Load required packages
+
+```{r}
+library(tidyverse)
+library(tidymodels)
+library(janitor)
+library(naniar)
+library(skimr)
+library(pastecs)
+options(scipen = 999, digits = 2)
+tidymodels_prefer()
+```
+
+## Read data
+
+```{r}
+seoul_bike_data <- read_csv("https://www4.stat.ncsu.edu/~online/datasets/SeoulBikeData.csv",
+         locale = locale(encoding = "Latin1"))
+```
+
+## Check and manipulate the data
+
+```{r}
+vis_miss(seoul_bike_data)
+```
+
+```{r}
+glimpse(seoul_bike_data)
+```
+
+```{r}
+skim(seoul_bike_data)
+```
+
+```{r}
+names(seoul_bike_data) <- str_remove(names(seoul_bike_data), "\\s*\\([^\\)]+\\)")
+```
+
+```{r}
+seoul_bike_data <-
+  seoul_bike_data |>
+  mutate(Date = dmy(Date)) |>
+  mutate(across(where(is.character), as.factor)) |>
+  clean_names()
+
+seoul_bike_data
+```
+
+## Exploratory data analysis
+
+```{r}
+summary(seoul_bike_data)
+```
+
+```{r}
+skim(seoul_bike_data)
+```
+
+```{r}
+seoul_bike_data |>
+  group_by(functioning_day) |>
+  select(rented_bike_count) |>
+  skim()
+```
+
+```{r}
+weather_vars <- names(seoul_bike_data[4:9])
+weather_vars
+```
+
+```{r}
+
+new_seoul_bike_data <-
+  seoul_bike_data |>
+  filter(functioning_day == "Yes") |>
+  group_by(date, seasons, holiday) |>
+  summarise(across(c(rented_bike_count, rainfall, snowfall), sum),
+            across(all_of(weather_vars), mean))
+
+new_seoul_bike_data
+```
+
+Recreate your basic summary stats
+
+```{r}
+summary(new_seoul_bike_data)
+```
+
+```{r}
+stat.desc(new_seoul_bike_data[,4:ncol(new_seoul_bike_data)], basic = F)
+```
+
+Report correlation between numeric variables
+
+```{r}
+cor(new_seoul_bike_data[,4:ncol(new_seoul_bike_data)])
+```
+
+Create some plots to explore relationships
+
+```{r}
+new_seoul_bike_data |>
+  ggplot(aes(x = rented_bike_count, y = temperature)) +
+  geom_point(aes(color = holiday)) +
+  facet_wrap(~ seasons)
+```
+
+## Split the data
+
+Split the data into a training and test set (75/25 split). Use the strata argument to stratify the split on the `seasons` variable
+
+```{r}
+set.seed(1017)
+bike_split <- initial_split(new_seoul_bike_data, prop = 0.75, strata = "seasons")
+bike_train <- training(bike_split)
+bike_test <- testing(bike_split)
+```
+
+On the training set, create a 10 fold CV split
+
+```{r}
+bike_10_fold <- vfold_cv(bike_train, 10)
+```
+
+## Create recipes
+
+For the 1st recipe: • Let’s ignore the date variable for modeling (so we’ll need to remove that or give it a different ID) but use it to create a weekday/weekend (factor) variable. (See step 2 of the shinymodels tutorial! You can use step_date() then step_mutate() with a factor(if_else(...)) to create the variable. I then had to remove the intermediate variable created.) • Let’s standardize the numeric variables since their scales are pretty different. • Let’s create dummy variables for the seasons, holiday, and our new day type variable
+
+```{r}
+bike_rec_1 <-
+  recipe(rented_bike_count ~ ., data = bike_train) |>
+  step_date(date, features = "dow") |>
+  step_mutate(weekpart = factor(if_else(date_dow %in% c("Sun", "Sat"), "Weekend", "Weekday"))) |>
+  step_rm(date, date_dow) |>
+  step_normalize(all_numeric(), -all_outcomes()) |>
+  step_dummy(seasons, holiday, weekpart)
+```
+
+```{r}
+bike_rec_1 |>
+  prep(training = bike_train) |>
+  bake(bike_train)
+```
+
+
+For the 2nd recipe: • Do the same steps as above. • Add in interactions between seasons and holiday, seasons and temp, temp and rainfall. For the seasons interactions, you can use starts_with() to create the proper interactions.
+
+```{r}
+bike_rec_2 <-
+  bike_rec_1 |>
+  step_interact(~ starts_with("holiday"):starts_with("seasons") +
+                  temperature:starts_with("seasons") +
+                  temperature:rainfall)
+```
+
+```{r}
+bike_rec_2 |>
+  prep(training = bike_train) |>
+  bake(bike_train)
+```
+
+
+For the 3rd recipe: • Do the same as the 2nd recipe. • Add in quadratic terms for each numeric predictor
+
+```{r}
+bike_rec_3 <-
+  recipe(rented_bike_count ~ ., data = bike_train) |>
+  step_date(date, features = "dow") |>
+  step_mutate(weekpart = factor(if_else(date_dow %in% c("Sun", "Sat"), "Weekend", "Weekday"))) |>
+  step_rm(date, date_dow) |>
+  step_normalize(all_numeric(), -all_outcomes()) |>
+  step_poly(all_numeric(), -all_outcomes(), degree = 2, keep_original_cols = T) |>
+  step_rm(ends_with("poly_1")) |>
+  step_dummy(seasons, holiday, weekpart) |>
+  step_interact(~ starts_with("holiday"):starts_with("seasons") +
+                  temperature:starts_with("seasons") +
+                  temperature:rainfall)
+```
+
+```{r}
+bike_rec_3 |>
+  prep(training = bike_train) |>
+  bake(bike_train)
+```
+
+
+## Fit MLR Models
+```{r}
+set.seed(1017)
+bike_10_fold <- vfold_cv(bike_train, v = 10)
+bike_10_fold
+```
+
+```{r}
+lm_mod <-
+  linear_reg() |>
+  set_engine("lm")
+```
+
+```{r}
+bike_wfl_1 <-
+  workflow() |>
+  add_recipe(bike_rec_1) |>
+  add_model(lm_mod)
+```
+
+```{r}
+bike_cv_fits_1 <-
+  bike_wfl_1 |>
+  fit_resamples(bike_10_fold)
+```
+
+```{r}
+bike_cv_1_metrics <-
+  bike_cv_fits_1 |>
+  collect_metrics()
+```
+
+Repeat process for recipe 2
+```{r}
+bike_wfl_2 <-
+  workflow() |>
+  add_recipe(bike_rec_2) |>
+  add_model(lm_mod)
+```
+
+```{r}
+bike_cv_fits_2 <-
+  bike_wfl_2 |>
+  fit_resamples(bike_10_fold)
+```
+
+```{r}
+bike_cv_2_metrics <-
+  bike_cv_fits_2 |>
+  collect_metrics()
+```
+
+Repeat for recipe 3
+```{r}
+bike_wfl_3 <-
+  workflow() |>
+  add_recipe(bike_rec_3) |>
+  add_model(lm_mod)
+```
+
+```{r}
+bike_cv_fits_3 <-
+  bike_wfl_3 |>
+  fit_resamples(bike_10_fold)
+```
+
+```{r}
+bike_cv_3_metrics <-
+  bike_cv_fits_3 |>
+  collect_metrics()
+```
+
+```{r}
+rbind(bike_cv_1_metrics, bike_cv_2_metrics, bike_cv_3_metrics)
+```
+
+```{r}
+bike_best_fit <-
+  bike_wfl_3 |>
+  fit(bike_train)
+```
+
+```{r}
+bike_best_fit |>
+  tidy()
+```
+
+```{r}
+bike_wfl_3 |>
+  last_fit(split = bike_split) |>
+  collect_metrics()
+```
+
+```{r}
+extract_fit_parsnip(
+  bike_wfl_3 |>
+  last_fit(split = bike_split)
+) |>
+  tidy()
+```

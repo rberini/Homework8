@@ -291,6 +291,7 @@ bike_rec_3 |>
 ## Fit MLR Models
 
 Set up linear model fit to use the `“lm”` engine.
+
 ```{r}
 lm_mod <-
   linear_reg() |>
@@ -298,6 +299,7 @@ lm_mod <-
 ```
 
 Fit models for recipe 1 using 10 fold CV via `fit_resamples()` and consider the training set CV error.
+
 ```{r}
 bike_wfl_1 <-
   workflow() |>
@@ -318,6 +320,7 @@ bike_cv_1_metrics <-
 ```
 
 Repeat process for recipe 2.
+
 ```{r}
 bike_wfl_2 <-
   workflow() |>
@@ -338,6 +341,7 @@ bike_cv_2_metrics <-
 ```
 
 Repeat process for recipe 3.
+
 ```{r}
 bike_wfl_3 <-
   workflow() |>
@@ -358,6 +362,7 @@ bike_cv_3_metrics <-
 ```
 
 Consider the training set CV error across recipes to choose a best model.
+
 ```{r}
 rbind(bike_cv_1_metrics, bike_cv_2_metrics, bike_cv_3_metrics)
 ```
@@ -374,18 +379,20 @@ bike_best_fit |>
 ```
 
 Using the best model, fit the model to the entire training data set using the `last_fit()` function. Compute the RMSE metric on the test set.
+
 ```{r}
 bike_wfl_3 |>
   last_fit(split = bike_split) |>
   collect_metrics()
 ```
 
-Obtain the final model (fit on the entire training set) coefficient table using `extract_fit_parsnip()`
-and `tidy()`.
+Obtain the final model (fit on the entire training set) coefficient table using `extract_fit_parsnip()` and `tidy()`.
+
 ```{r}
 extract_fit_parsnip(
   bike_wfl_3 |>
   last_fit(split = bike_split)
 ) |>
-  tidy()
+  tidy() |>
+  print(n=Inf)
 ```

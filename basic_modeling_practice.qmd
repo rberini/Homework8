@@ -364,7 +364,10 @@ bike_cv_3_metrics <-
 Consider the training set CV error across recipes to choose a best model.
 
 ```{r}
-rbind(bike_cv_1_metrics, bike_cv_2_metrics, bike_cv_3_metrics)
+rbind(bike_cv_1_metrics, bike_cv_2_metrics, bike_cv_3_metrics) |>
+  filter(.metric == "rmse") |>
+  mutate(model = c("Recipe 1", "Recipe 2", "Recipe 3")) |>
+  select(model, "mean rmse" = mean, n, std_err)
 ```
 
 ```{r}
@@ -383,7 +386,9 @@ Using the best model, fit the model to the entire training data set using the `l
 ```{r}
 bike_wfl_3 |>
   last_fit(split = bike_split) |>
-  collect_metrics()
+  collect_metrics() |>
+  filter(.metric == "rmse") |>
+  select("rmse" = .estimate)
 ```
 
 Obtain the final model (fit on the entire training set) coefficient table using `extract_fit_parsnip()` and `tidy()`.

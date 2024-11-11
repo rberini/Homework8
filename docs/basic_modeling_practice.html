@@ -1392,17 +1392,17 @@ solar_radiation                 1.000</code></pre>
 </div>
 <p>Consider the training set CV error across recipes to choose a best model.</p>
 <div class="cell">
-<div class="sourceCode cell-code" id="cb52"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb52-1"><a href="#cb52-1" aria-hidden="true" tabindex="-1"></a><span class="fu">rbind</span>(bike_cv_1_metrics, bike_cv_2_metrics, bike_cv_3_metrics)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="sourceCode cell-code" id="cb52"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb52-1"><a href="#cb52-1" aria-hidden="true" tabindex="-1"></a><span class="fu">rbind</span>(bike_cv_1_metrics, bike_cv_2_metrics, bike_cv_3_metrics) <span class="sc">|&gt;</span></span>
+<span id="cb52-2"><a href="#cb52-2" aria-hidden="true" tabindex="-1"></a>  <span class="fu">filter</span>(.metric <span class="sc">==</span> <span class="st">"rmse"</span>) <span class="sc">|&gt;</span></span>
+<span id="cb52-3"><a href="#cb52-3" aria-hidden="true" tabindex="-1"></a>  <span class="fu">mutate</span>(<span class="at">model =</span> <span class="fu">c</span>(<span class="st">"Recipe 1"</span>, <span class="st">"Recipe 2"</span>, <span class="st">"Recipe 3"</span>)) <span class="sc">|&gt;</span></span>
+<span id="cb52-4"><a href="#cb52-4" aria-hidden="true" tabindex="-1"></a>  <span class="fu">select</span>(model, <span class="st">"mean rmse"</span> <span class="ot">=</span> mean, n, std_err)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 <div class="cell-output cell-output-stdout">
-<pre><code># A tibble: 6 × 6
-  .metric .estimator     mean     n  std_err .config             
-  &lt;chr&gt;   &lt;chr&gt;         &lt;dbl&gt; &lt;int&gt;    &lt;dbl&gt; &lt;chr&gt;               
-1 rmse    standard   3987.       10 171.     Preprocessor1_Model1
-2 rsq     standard      0.853    10   0.0110 Preprocessor1_Model1
-3 rmse    standard   2980.       10 276.     Preprocessor1_Model1
-4 rsq     standard      0.912    10   0.0122 Preprocessor1_Model1
-5 rmse    standard   2898.       10 250.     Preprocessor1_Model1
-6 rsq     standard      0.917    10   0.0105 Preprocessor1_Model1</code></pre>
+<pre><code># A tibble: 3 × 4
+  model    `mean rmse`     n std_err
+  &lt;chr&gt;          &lt;dbl&gt; &lt;int&gt;   &lt;dbl&gt;
+1 Recipe 1       3987.    10    171.
+2 Recipe 2       2980.    10    276.
+3 Recipe 3       2898.    10    250.</code></pre>
 </div>
 </div>
 <div class="cell">
@@ -1434,13 +1434,14 @@ solar_radiation                 1.000</code></pre>
 <div class="cell">
 <div class="sourceCode cell-code" id="cb57"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb57-1"><a href="#cb57-1" aria-hidden="true" tabindex="-1"></a>bike_wfl_3 <span class="sc">|&gt;</span></span>
 <span id="cb57-2"><a href="#cb57-2" aria-hidden="true" tabindex="-1"></a>  <span class="fu">last_fit</span>(<span class="at">split =</span> bike_split) <span class="sc">|&gt;</span></span>
-<span id="cb57-3"><a href="#cb57-3" aria-hidden="true" tabindex="-1"></a>  <span class="fu">collect_metrics</span>()</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<span id="cb57-3"><a href="#cb57-3" aria-hidden="true" tabindex="-1"></a>  <span class="fu">collect_metrics</span>() <span class="sc">|&gt;</span></span>
+<span id="cb57-4"><a href="#cb57-4" aria-hidden="true" tabindex="-1"></a>  <span class="fu">filter</span>(.metric <span class="sc">==</span> <span class="st">"rmse"</span>) <span class="sc">|&gt;</span></span>
+<span id="cb57-5"><a href="#cb57-5" aria-hidden="true" tabindex="-1"></a>  <span class="fu">select</span>(<span class="st">"rmse"</span> <span class="ot">=</span> .estimate)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 <div class="cell-output cell-output-stdout">
-<pre><code># A tibble: 2 × 4
-  .metric .estimator .estimate .config             
-  &lt;chr&gt;   &lt;chr&gt;          &lt;dbl&gt; &lt;chr&gt;               
-1 rmse    standard    3145.    Preprocessor1_Model1
-2 rsq     standard       0.895 Preprocessor1_Model1</code></pre>
+<pre><code># A tibble: 1 × 1
+   rmse
+  &lt;dbl&gt;
+1 3145.</code></pre>
 </div>
 </div>
 <p>Obtain the final model (fit on the entire training set) coefficient table using <code>extract_fit_parsnip()</code> and <code>tidy()</code>.</p>
